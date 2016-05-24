@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Export your iPhone messages to a CSV</title>
+	<style type="text/css">
+		#drop-zone{
+			position: fixed;
+			display: none;
+			background: #666;
+			background: rgba(0,0,0,0.4);
+			width: 100%;
+			height: 100%;
+			padding: 10% 0;
+			top: 0;
+			left: 0;
+			z-index: 149;
+			text-align: center;
+		}
+
+	</style>
+	<script type="text/javascript" src="sql.js/js/sql.js"></script>
+
+</head>
+
+<body>
+	<div id="drop-zone">
+		<div>
+			<h1>Awesome! Now Let Go! </h1>
+		</div>
+	</div>
+	Drag In your files to this page. 
+	<script>
+		function NameLookup(Number){
+			if(!document.AddressBook){
+				return '\''+Number+'\'';
+			}
+			for (var i = document.AddressBook.length - 1; i >= 0; i--) {
+				if(document.AddressBook[i][1] && document.AddressBook[i][1].indexOf(Number) > -1){
+					return document.AddressBook[i][0];
+				}
+			};
+			return Number;
+		}
+		function returnQueryResults(commands,worker) {
+			console.log("EXECUTING:"+commands);
+			worker.onmessage = function(event) {
+				var results = event.data.results;
+				var csvContent = 'Timestamp, IsFromMe, otherPerson,Message\n';
+				document.write('<pre>');
+				for (var i =0; i <= results[0].values.length-1; i++) {
+					//debugger;
+					results[0].values[i][2] = NameLookup(results[0].values[i][2]);
+
+					dataString = results[0].values[i].join(",");
+
+					csvContent +=  dataString+ "\n" ;
+				}
+				document.write(csvContent);
+				console.log('here');
+			}
+			worker.postMessage({action:'exec', sql:commands});
+		}
+		function readfiles(files) {
+			for (var i = 0; i < files.length; i++) {
+				if (files[i].name == '31bb7ba8914766d4ba40d6dfb6113c8b614be442' ){
+				//handling the contacts database with a seperate web worker.
+
+				var twerker = new Worker("sql.js/js/worker.sql.js");
+
+				var fc = files[i];
+				var rc = new FileReader();
+				rc.onload = function() {
+					twerker.onmessage = function () {
+					// Show the schema of the loaded database
+					var query = "SELECT * FROM `ABPersonFullTextSearch_content`;";
+					console.log("EXECUTING:"+query);
+					twerker.onmessage = function(event) {
+						var results = event.data.results;
+						console.log(results);
+						var myname = ''
+						if(results[0].values[0][1]){
+							myname +=  results[0].values[0][1];
+							myname += ' ';
+						}
+						if(results[0].values[0][3]){
+							myname +=  results[0].values[0][3];
+							myname += ' ';
+						}
+						if(results[0].values[0][2]){
+							myname +=  results[0].values[0][2];
+							myname += ' ';
+						}
+						document.AddressBook = [];
+						var name = '';
+						for (var i = results[0].values.length - 1; i >= 0; i--) {
+							name = '';
+							if(results[0].values[i][1]){
+								name +=  results[0].values[i][1];
+								name += ' ';
+							}
+							if(results[0].values[i][3]){
+								name +=  results[0].values[i][3];
+								name += ' ';
+							}
+							if(results[0].values[i][2]){
+								name +=  results[0].values[i][2];
+								name += ' ';
+							}
+							document.AddressBook.push([name,results[0].values[i][16]])
+						};
+						twerker.terminate();
+					}
+					twerker.postMessage({action:'exec', sql:query});
+				};
+				try {
+					twerker.postMessage({action:'open',buffer:rc.result}, [rc.result]);
+				}
+				catch(exception) {
+					twerker.postMessage({action:'open',buffer:rc.result});
+				}
+			}
+			rc.readAsArrayBuffer(fc);
+		}else if(files[i].name == '3d0d7e5fb2ce288813306e4d4636395e047a3d28'){
+			var worker = new Worker("sql.js/js/worker.sql.js");
+
+			var f = files[i];
+			var r = new FileReader();
+			r.onload = function() {
+				worker.onmessage = function () {
+
+					var query = 'SELECT \
+					`date`, \
+					`is_from_me`, \
+					`handle`.`id`, \
+					`text` \
+					FROM `message` \
+					JOIN `handle` ON `handle`.`ROWID` = `message`.`handle_id`  \
+					'
+
+					returnQueryResults(query,worker);
+
+				};
+				try {
+					worker.postMessage({action:'open',buffer:r.result}, [r.result]);
+				}
+				catch(exception) {
+					worker.postMessage({action:'open',buffer:r.result});
+				}
+			}
+			r.readAsArrayBuffer(f);
+		}else{
+			document.getElementById('drop-zone').innerHTML = "<center><h1>ERROR:Wrong File Name :'(</h1>refresh and try again</center>";
+		}
+		console.log('You uploaded:');
+		console.log(files[i].name);
+		console.log('expected 3d0d7e5fb2ce288813306e4d4636395e047a3d28 & 31bb7ba8914766d4ba40d6dfb6113c8b614be442');
+	}
+
+}
+
+
+
+
+
+
+
+
+
+document.ondragover = function(event) {
+	event.preventDefault();
+	document.getElementById('drop-zone').style.display = 'block';
+}
+document.ondrop = function(e){
+	e.preventDefault();
+	readfiles(e.dataTransfer.files);
+}
+document.getElementById('drop-zone').addEventListener("dragleave", function( event ) {
+      // reset the transparency
+      document.getElementById('drop-zone').style.display='none';
+
+  }, false);
+
+
+    // var holder = document.getElementById('drop-zone'),
+
+    // 	if (tests.dnd) { 
+    // 		holder.ondragover = function () { 
+    // 			this.className = 'hover small-12 medium-6 large-4 medium-centered columns'; return false; 
+    // 		};
+    // 		holder.ondragend = function () { 
+    // 			this.className = 'small-12 medium-6 large-4 medium-centered columns';
+    // 			return false; 
+    // 		};
+    // 		holder.ondrop = function (e) {
+    // 			this.className = 'small-12 medium-6 large-4 medium-centered columns';
+    // 			this.innerHTML = '<center><h1>Nice Job!</h1></center>'
+    // 			e.preventDefault();
+    // 			readfiles(e.dataTransfer.files);
+    // 		}
+    // 	} 
+    // 	else {
+    // 		fileupload.className = 'hidden';
+    // 		fileupload.querySelector('input').onchange = function () {
+    // 			readfiles(this.files);
+    // 		};
+    // 	}
+
+
+
+
+
+    // // or sql = window.SQL if you are in a browser
+
+    // // Create a database
+    // var db = new sql.Database();
+    // // NOTE: You can also use new sql.Database(data) where
+    // // data is an Uint8Array representing an SQLite database file
+
+    // // Execute some sql
+    // sqlstr = "CREATE TABLE hello (a int, b char);";
+    // sqlstr += "INSERT INTO hello VALUES (0, 'hello');"
+    // sqlstr += "INSERT INTO hello VALUES (1, 'world');"
+    // db.run(sqlstr); // Run the query without returning anything
+
+    // var res = db.exec("SELECT * FROM hello");
+    // /*
+    // [
+    //     {columns:['a','b'], values:[[0,'hello'],[1,'world']]}
+    // ]
+    // */
+
+    // // Prepare an sql statement
+    // var stmt = db.prepare("SELECT * FROM hello WHERE a=:aval AND b=:bval");
+
+    // // Bind values to the parameters and fetch the results of the query
+    // var result = stmt.getAsObject({':aval' : 1, ':bval' : 'world'});
+    // console.log(result); // Will print {a:1, b:'world'}
+
+    // // Bind other values
+    // stmt.bind([0, 'hello']);
+    // while (stmt.step()) console.log(stmt.get()); // Will print [0, 'hello']
+
+    // // You can also use javascript functions inside your SQL code
+    // // Create the js function you need
+    // function add(a, b) {return a+b;}
+    // // Specifies the SQL function's name, the number of it's arguments, and the js function to use
+    // db.create_function("add_js", add);
+    // // Run a query in which the function is used
+    // db.run("INSERT INTO hello VALUES (add_js(7, 3), add_js('Hello ', 'world'));"); // Inserts 10 and 'Hello world'
+
+    // // free the memory used by the statement
+    // stmt.free();
+    // // You can not use your statement anymore once it has been freed.
+    // // But not freeing your statements causes memory leaks. You don't want that.
+
+    // // Export the database to an Uint8Array containing the SQLite database file
+    // var binaryArray = db.export();
+</script>
+</body>
+
+</html>
