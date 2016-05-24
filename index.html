@@ -31,6 +31,11 @@
 	</div>
 	Drag In your files to this page. 
 	<script>
+		function convertFromAppleTime(secondsSince){
+			//might be off by two hours? Doesn't adjust for time zones? 
+			return(new Date((secondsSince+978300000)*1000));
+		}
+
 		function NameLookup(Number){
 			if(!document.AddressBook){
 				return '\''+Number+'\'';
@@ -49,8 +54,10 @@
 				var csvContent = 'Timestamp, IsFromMe, otherPerson,Message\n';
 				document.write('<pre>');
 				for (var i =0; i <= results[0].values.length-1; i++) {
-					//debugger;
+					//replace Phone numbers with names
 					results[0].values[i][2] = NameLookup(results[0].values[i][2]);
+					//replace apple timestamp with actual dates
+					results[0].values[i][0] = convertFromAppleTime(results[0].values[i][0]);
 
 					dataString = results[0].values[i].join(",");
 
